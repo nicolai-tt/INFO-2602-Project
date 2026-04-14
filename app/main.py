@@ -9,8 +9,30 @@ from contextlib import asynccontextmanager
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    from app.database import create_db_and_tables
+    from app.database import create_db_and_tables, get_cli_session
+    from app.models.user import User
+    from app.models.workout import Workout
+    from app.utilities.security import encrypt_password
+    from app.cli import sample_workouts, create_user_if_missing
+    from sqlmodel import select
+
     create_db_and_tables()
+
+    with get_cli_session() as db:
+        create_user_if_missing(db, "bob",   "bob@mail.com",   "bobpass",   "regular_user")
+        create_user_if_missing(db, "admin", "admin@mail.com", "adminpass", "admin")
+
+        current_workouts = db.exec(select(Workout)).all()
+        if not current_workouts:
+            for data in sample_workouts:
+                db.add(Workout(
+                    name=data["name"],
+                    description=data["description"],
+                    muscle_group=data["muscle_group"],
+                    difficulty=data["difficulty"]
+                ))
+        db.commit()
+
     yield
 
 
