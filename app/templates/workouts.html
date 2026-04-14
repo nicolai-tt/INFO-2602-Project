@@ -1,0 +1,173 @@
+{% extends "authenticated-base.html" %}
+
+{% block external_js %}
+<script src="{{ url_for('static', path='js/workouts.js') }}"></script>
+{% endblock %}
+
+{% block additional_styles %}
+<style>
+    .workout-card {
+        border: none;
+        border-radius: 1rem;
+        transition: transform 0.2s;
+    }
+
+    .workout-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+    }
+
+    .badge-chest     { background-color: #e63946; }
+    .badge-back      { background-color: #457b9d; }
+    .badge-legs      { background-color: #2a9d8f; }
+    .badge-shoulders { background-color: #e9c46a; color: #333; }
+    .badge-arms      { background-color: #f4a261; color: #333; }
+    .badge-core      { background-color: #6a4c93; }
+    .badge-cardio    { background-color: #e76f51; }
+
+    .filter-btn.active {
+        background-color: #1b263b;
+        color: white;
+        border-color: #1b263b;
+    }
+
+    #pagination-bar {
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block subpage_content %}
+<div class="container-fluid px-4">
+
+    <!-- Page header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-bold mb-0">Browse Workouts</h3>
+        <button class="btn btn-primary" id="addWorkoutBtn" style="display:none"
+            data-bs-toggle="modal" data-bs-target="#addWorkoutModal">
+            <span class="material-symbols-outlined align-middle me-1" style="font-size:18px">add</span>
+            Add Workout
+        </button>
+    </div>
+
+    <!-- Search bar -->
+    <div class="mb-3">
+        <input type="text" id="workout-search" class="form-control form-control-lg"
+            placeholder="Search workouts...">
+    </div>
+
+    <!-- Muscle group filters -->
+    <div class="d-flex flex-wrap gap-2 mb-4">
+        <button class="btn btn-outline-secondary filter-btn active" onclick="setFilter(null, this)">All</button>
+        <button class="btn btn-outline-secondary filter-btn" onclick="setFilter('chest', this)">Chest</button>
+        <button class="btn btn-outline-secondary filter-btn" onclick="setFilter('back', this)">Back</button>
+        <button class="btn btn-outline-secondary filter-btn" onclick="setFilter('legs', this)">Legs</button>
+        <button class="btn btn-outline-secondary filter-btn" onclick="setFilter('shoulders', this)">Shoulders</button>
+        <button class="btn btn-outline-secondary filter-btn" onclick="setFilter('arms', this)">Arms</button>
+        <button class="btn btn-outline-secondary filter-btn" onclick="setFilter('core', this)">Core</button>
+        <button class="btn btn-outline-secondary filter-btn" onclick="setFilter('cardio', this)">Cardio</button>
+    </div>
+
+    <!-- Workout cards -->
+    <div class="row g-4" id="workout-grid"></div>
+
+    <!-- Pagination -->
+    <div class="d-flex justify-content-between align-items-center mt-4" id="pagination-bar">
+        <span class="text-muted small" id="pagination-info"></span>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary btn-sm" id="prev-btn" onclick="changePage(-1)">
+                <span class="material-symbols-outlined align-middle" style="font-size:16px">chevron_left</span>
+                Prev
+            </button>
+            <div class="d-flex gap-1" id="page-numbers"></div>
+            <button class="btn btn-outline-secondary btn-sm" id="next-btn" onclick="changePage(1)">
+                Next
+                <span class="material-symbols-outlined align-middle" style="font-size:16px">chevron_right</span>
+            </button>
+        </div>
+    </div>
+
+</div>
+
+
+<!-- Add to Routine Modal -->
+<div class="modal fade" id="addToRoutineModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content rounded-3">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold">Add to Routine</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-3">
+                    Adding: <strong id="selectedWorkoutName"></strong>
+                </p>
+                <div id="routine-list">
+                    <p class="text-muted">Loading your routines...</p>
+                </div>
+                <hr>
+                <p class="text-muted small">
+                    Don't have a routine yet?
+                    <a href="/routines">Create one first.</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Add Workout Modal (admin only) -->
+<div class="modal fade" id="addWorkoutModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content rounded-3">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold">New Workout</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addWorkoutForm">
+                    <div class="mb-3">
+                        <label class="form-label">Name</label>
+                        <input type="text" class="form-control" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" name="description" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Muscle Group</label>
+                        <select class="form-select" name="muscle_group" required>
+                            <option value="">Choose...</option>
+                            <option value="chest">Chest</option>
+                            <option value="back">Back</option>
+                            <option value="legs">Legs</option>
+                            <option value="shoulders">Shoulders</option>
+                            <option value="arms">Arms</option>
+                            <option value="core">Core</option>
+                            <option value="cardio">Cardio</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Difficulty</label>
+                        <select class="form-select" name="difficulty">
+                            <option value="beginner">Beginner</option>
+                            <option value="intermediate">Intermediate</option>
+                            <option value="advanced">Advanced</option>
+                        </select>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Save Workout</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- User info for JS -->
+<script>
+    const isAdmin = "{{ user.role }}" === "admin";
+</script>
+
+{% endblock %}
