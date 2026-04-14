@@ -13,9 +13,7 @@ async def user_home_view(
     db:SessionDep
 ):
     return templates.TemplateResponse(
-        request=request, 
-        name="app.html",
-        context={
-            "user": user
-        }
+        request=request,
+        name="workouts.html",
+        context={"user": user}
     )
