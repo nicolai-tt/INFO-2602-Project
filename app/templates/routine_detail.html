@@ -1,0 +1,221 @@
+{% extends "authenticated-base.html" %}
+
+{% block external_js %}
+<script src="{{ url_for('static', path='js/routine_detail.js') }}"></script>
+{% endblock %}
+
+{% block additional_styles %}
+<style>
+    .workout-row {
+        background: white;
+        border-radius: 0.75rem;
+        padding: 1rem 1.25rem;
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+    }
+
+    .workout-row .workout-info {
+        flex: 1;
+    }
+
+    .workout-row .workout-info h6 {
+        margin: 0;
+        font-weight: 600;
+    }
+
+    .workout-row .workout-info small {
+        color: #6c757d;
+    }
+
+    .workout-row .workout-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-shrink: 0;
+    }
+
+    .sets-reps-badge {
+        background: #e9ecef;
+        border-radius: 0.5rem;
+        padding: 0.25rem 0.75rem;
+        font-size: 0.85rem;
+        white-space: nowrap;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: #6c757d;
+    }
+
+    .badge-chest     { background-color: #e63946; color: #fff; }
+    .badge-back      { background-color: #457b9d; color: #fff; }
+    .badge-legs      { background-color: #2a9d8f; color: #fff; }
+    .badge-shoulders { background-color: #e9c46a; color: #333; }
+    .badge-arms      { background-color: #f4a261; color: #333; }
+    .badge-core      { background-color: #6a4c93; color: #fff; }
+    .badge-cardio    { background-color: #e76f51; color: #fff; }
+</style>
+{% endblock %}
+
+{% block subpage_content %}
+<div class="container-fluid px-4">
+
+    <!-- Page header -->
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+            <a href="/routines" class="text-muted text-decoration-none small">
+                <span class="material-symbols-outlined align-middle" style="font-size:16px">arrow_back</span>
+                Back to routines
+            </a>
+            <h3 class="fw-bold mt-1 mb-0" id="routine-name">Loading...</h3>
+            <p class="text-muted mb-0" id="routine-description"></p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary btn-sm"
+                data-bs-toggle="modal" data-bs-target="#editRoutineModal">
+                <span class="material-symbols-outlined align-middle" style="font-size:16px">edit</span>
+                Edit
+            </button>
+            <button class="btn btn-primary btn-sm"
+                data-bs-toggle="modal" data-bs-target="#addWorkoutModal">
+                <span class="material-symbols-outlined align-middle" style="font-size:16px">add</span>
+                Add Workout
+            </button>
+        </div>
+    </div>
+
+    <!-- Workout list -->
+    <div id="workout-list">
+        <div class="empty-state">
+            <span class="material-symbols-outlined" style="font-size:48px">hourglass_empty</span>
+            <p class="mt-2">Loading...</p>
+        </div>
+    </div>
+
+</div>
+
+
+<!-- Edit Routine Modal -->
+<div class="modal fade" id="editRoutineModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content rounded-3">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold">Edit Routine</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editRoutineForm">
+                    <div class="mb-3">
+                        <label class="form-label">Name</label>
+                        <input type="text" class="form-control" id="editRoutineName" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" id="editRoutineDesc" name="description" rows="2"></textarea>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Add Workout Modal -->
+<div class="modal fade" id="addWorkoutModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content rounded-3">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold">Add a Workout</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+
+                <!-- Muscle group filter -->
+                <div class="d-flex flex-wrap gap-2 mb-3" id="add-workout-filters">
+                    <button class="btn btn-sm btn-outline-secondary active" onclick="filterAddWorkouts(null, this)">All</button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="filterAddWorkouts('chest', this)">Chest</button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="filterAddWorkouts('back', this)">Back</button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="filterAddWorkouts('legs', this)">Legs</button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="filterAddWorkouts('shoulders', this)">Shoulders</button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="filterAddWorkouts('arms', this)">Arms</button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="filterAddWorkouts('core', this)">Core</button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="filterAddWorkouts('cardio', this)">Cardio</button>
+                </div>
+
+                <!-- Workout list -->
+                <div id="add-workout-list" style="max-height:350px; overflow-y:auto;">
+                    <p class="text-muted">Loading workouts...</p>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Remix Modal -->
+<div class="modal fade" id="remixModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content rounded-3">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold">
+                    <span class="material-symbols-outlined align-middle text-primary">shuffle</span>
+                    Remix Workout
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-3">
+                    Swap <strong id="remixCurrentName"></strong> with another
+                    <strong id="remixGroup"></strong> exercise:
+                </p>
+                <div id="remix-options">
+                    <p class="text-muted">Loading alternatives...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Edit Sets & Reps Modal -->
+<div class="modal fade" id="editSetsModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content rounded-3">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold">Edit Sets & Reps</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editSetsForm">
+                    <input type="hidden" id="editRwId">
+                    <div class="mb-3">
+                        <label class="form-label">Sets</label>
+                        <input type="number" class="form-control" id="editSets" min="1" max="20" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Reps</label>
+                        <input type="number" class="form-control" id="editReps" min="1" max="100" required>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Update</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Routine ID for JS -->
+<script>
+    const routineId = {{ routine_id }};
+</script>
+
+{% endblock %}
