@@ -9,68 +9,81 @@ from typing import Optional
 from fastapi import status
 from . import api_router
 
-@api_router.get('/workouts', response_model=list[Workout])
-async def list_workouts(db:SessionDep, muscle_grp: Optional[str] = None):
-    db_query = select(Workout)
-    if muscle_grp:
-        db_query = db_query.where(Workout.muscle_group == muscle_grp)
-    
-    results = db.exec(db_query).all()
-    return results
 
 
-@api_router.get('/workouts/{workout_id}', response_model=Workout)
-async def get_workout(db:SessionDep, workout_id: int):
+
+@api_router.get("/workouts")
+async def list_workouts(
+    db: SessionDep,
+    muscle_group: Optional[str] = None
+):
+    query = select(Workout)
+
+    if muscle_group:
+        query = query.where(Workout.muscle_group == muscle_group)
+
+    return db.exec(query).all()
+
+
+
+@api_router.get("/workouts/{workout_id}")
+async def get_workout(
+    workout_id: int,
+    db: SessionDep
+):
     workout = db.get(Workout, workout_id)
 
     if not workout:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Workout not found"
-        )
-    
+        raise HTTPException(status_code=404, detail="Workout not found")
+
     return workout
 
-@api_router.get('/workouts/{workout_id}/alternative', response_model=list[Workout])
-async def get_alternative_workout(db:SessionDep, workout_id: int):
+
+
+@api_router.get("/workouts/{workout_id}/alternatives")
+async def get_alternatives(
+    workout_id: int,
+    db: SessionDep
+):
     workout = db.get(Workout, workout_id)
-    
+
     if not workout:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Workout not found",
+        raise HTTPException(status_code=404, detail="Workout not found")
+
+    return db.exec(
+        select(Workout).where(
+            Workout.muscle_group == workout.muscle_group,
+            Workout.id != workout_id
         )
-    
-    alt_workout = db.exec(select(Workout).where(Workout.muscle_group == workout.muscle_group, Workout.id != workout_id)).all() 
-    return alt_workout
+    ).all()
 
-@api_router.post('/workout', status_code=status.HTTP_201_CREATED)
-async def create_workout(db:SessionDep, user: AdminDep, workout: WorkoutCreate):
-    new_workout = Workout.model_validate(workout)
 
-    db.add(new_workout)
+
+@api_router.post("/workouts", status_code=status.HTTP_201_CREATED)
+async def create_workout(
+    data: WorkoutCreate,
+    db: SessionDep,
+    user: AdminDep
+):
+    workout = Workout.model_validate(data)
+    db.add(workout)
     db.commit()
-    db.refresh(new_workout)
+    db.refresh(workout)
 
-    return new_workout
+    return workout
 
 
-@api_router.delete('/workout/{workout_id}', status_code=status.HTTP_204_NO_CONTENT)
-async def delete_workout(db:SessionDep, user:AdminDep, workout_id: int):
+
+@api_router.delete("/workouts/{workout_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_workout(
+    workout_id: int,
+    db: SessionDep,
+    user: AdminDep
+):
     workout = db.get(Workout, workout_id)
 
     if not workout:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Workout does not exist",
-        )
-    
-    try:
-        db.delete(workout)
-        db.commit()
-    except Exception:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error occured while trying to delete workout"
-        )
+        raise HTTPException(status_code=404, detail="Workout not found")
+
+    db.delete(workout)
+    db.commit()
